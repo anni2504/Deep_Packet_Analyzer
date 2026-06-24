@@ -1,5 +1,7 @@
 # DPI Engine - Deep Packet Inspection System
 
+👉 **Live Web App & Interactive Dashboard**: [https://deep-packet-analyzer-bay.vercel.app](https://deep-packet-analyzer-bay.vercel.app)
+
 
 This document explains **everything** about this project - from basic networking concepts to the complete code architecture. After reading this, you should understand exactly how packets flow through the system without needing to read the code.
 
