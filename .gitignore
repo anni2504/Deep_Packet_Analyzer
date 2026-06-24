@@ -1,0 +1,19 @@
+# Dependency directories
+node_modules/
+
+# Uploads and temporary files
+uploads/
+output.pcap
+*.pcap.filtered
+
+# Compiled binaries
+dpi_engine
+dpi_engine.exe
+dpi_simple
+build/
+CMakeSettings.json
+.vscode/
+
+# OS-specific files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,16 @@
+{
+  "name": "deep-packet-analyzer",
+  "version": "1.0.0",
+  "description": "Full-stack DPI Engine and Packet Analyzer",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "build": "g++ -std=c++17 -pthread -O2 -I include -o dpi_engine src/dpi_mt.cpp src/pcap_reader.cpp src/packet_parser.cpp src/sni_extractor.cpp src/types.cpp",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1"
+  }
+}

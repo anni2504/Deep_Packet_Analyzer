@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Packet Analyzer - Interactive DPI Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="glow-bg"></div>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <div class="logo">
+                <i class="fa-solid fa-shield-halved logo-icon"></i>
+                <div class="logo-text">
+                    <h1>DEEP PACKET ANALYZER</h1>
+                    <span>Multi-threaded Deep Packet Inspection Engine</span>
+                </div>
+            </div>
+            <div class="server-status">
+                <span class="status-indicator online"></span>
+                <span>System Ready</span>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main>
+            <!-- Setup & Control Panel -->
+            <section class="control-panel">
+                <div class="card glass shadow">
+                    <h2><i class="fa-solid fa-sliders icon-heading"></i> Configuration</h2>
+                    
+                    <!-- File Upload -->
+                    <div class="upload-container">
+                        <label for="pcap-file" class="upload-box" id="drop-zone">
+                            <i class="fa-solid fa-cloud-arrow-up upload-icon"></i>
+                            <span class="upload-title">Drag & Drop PCAP file</span>
+                            <span class="upload-subtitle">or click to browse from files (Max 50MB)</span>
+                            <input type="file" id="pcap-file" accept=".pcap" style="display: none;">
+                        </label>
+                        <div class="selected-file-info" id="file-info-box" style="display: none;">
+                            <div class="file-icon"><i class="fa-solid fa-file-code"></i></div>
+                            <div class="file-details">
+                                <span class="file-name" id="selected-file-name">filename.pcap</span>
+                                <span class="file-size" id="selected-file-size">0 bytes</span>
+                            </div>
+                            <button type="button" class="btn-remove-file" id="btn-remove-file"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- Rules Manager -->
+                    <div class="rules-section">
+                        <h3><i class="fa-solid fa-ban"></i> Traffic Filtering Rules</h3>
+                        <p class="section-desc">Specify IP addresses, application types, or domains to block.</p>
+                        
+                        <div class="rule-inputs">
+                            <select id="rule-type" class="glass-select">
+                                <option value="app">Block App</option>
+                                <option value="ip">Block IP</option>
+                                <option value="domain">Block Domain</option>
+                            </select>
+                            <input type="text" id="rule-value" placeholder="e.g. YouTube, 192.168.1.50, netflix" class="glass-input">
+                            <button type="button" id="btn-add-rule" class="btn btn-secondary"><i class="fa-solid fa-plus"></i> Add</button>
+                        </div>
+
+                        <!-- Rules List -->
+                        <div class="rules-list-container">
+                            <ul class="rules-list" id="rules-list">
+                                <li class="no-rules">No blocking rules configured yet.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <!-- Action Button -->
+                    <button type="button" id="btn-analyze" class="btn btn-primary btn-full animate-glow" disabled>
+                        <i class="fa-solid fa-bolt"></i> RUN DEEP PACKET INSPECTION
+                    </button>
+                </div>
+            </section>
+
+            <!-- Loading Shimmer State -->
+            <section class="loading-state" id="loading-state" style="display: none;">
+                <div class="card glass shimmer-card">
+                    <div class="loader-spinner"></div>
+                    <h3>Processing Network Captures...</h3>
+                    <p>Executing multi-threaded C++ DPI parser & resolving protocol streams.</p>
+                </div>
+            </section>
+
+            <!-- Dashboard Output Area (initially hidden) -->
+            <section class="dashboard-results" id="results-panel" style="display: none;">
+                <!-- KPIs Grid -->
+                <div class="kpi-grid">
+                    <div class="card glass kpi-card">
+                        <div class="kpi-icon blue"><i class="fa-solid fa-cube"></i></div>
+                        <div class="kpi-value" id="kpi-total-packets">0</div>
+                        <div class="kpi-label">Total Packets</div>
+                    </div>
+                    <div class="card glass kpi-card">
+                        <div class="kpi-icon purple"><i class="fa-solid fa-database"></i></div>
+                        <div class="kpi-value" id="kpi-total-bytes">0 KB</div>
+                        <div class="kpi-label">Total Volume</div>
+                    </div>
+                    <div class="card glass kpi-card">
+                        <div class="kpi-icon green"><i class="fa-solid fa-circle-check"></i></div>
+                        <div class="kpi-value" id="kpi-forwarded">0</div>
+                        <div class="kpi-label">Forwarded</div>
+                    </div>
+                    <div class="card glass kpi-card">
+                        <div class="kpi-icon red"><i class="fa-solid fa-circle-xmark"></i></div>
+                        <div class="kpi-value" id="kpi-dropped">0</div>
+                        <div class="kpi-label">Dropped / Blocked</div>
+                    </div>
+                </div>
+
+                <!-- Main Analysis Row -->
+                <div class="results-row-main">
+                    <!-- Application Breakdown -->
+                    <div class="card glass breakdown-card">
+                        <h2><i class="fa-solid fa-chart-pie icon-heading"></i> Application Breakdown</h2>
+                        <div class="breakdown-chart" id="app-breakdown-list">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Thread Engine Performance -->
+                    <div class="card glass thread-stats-card">
+                        <h2><i class="fa-solid fa-network-wired icon-heading"></i> Thread Performance</h2>
+                        <p class="section-desc mb-4">Workload distribution across Load Balancer and Fast Path threads.</p>
+                        
+                        <div class="threads-visualization">
+                            <h3>Load Balancers</h3>
+                            <div class="thread-bars" id="lb-threads-list">
+                                <!-- Populated dynamically -->
+                            </div>
+                            
+                            <h3 class="mt-4">Fast Paths</h3>
+                            <div class="thread-bars" id="fp-threads-list">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Domains and PCAP Download -->
+                <div class="card glass table-card mt-4">
+                    <div class="table-card-header">
+                        <h2><i class="fa-solid fa-globe icon-heading"></i> Extracted Domains & SNIs</h2>
+                        <button type="button" id="btn-download" class="btn btn-secondary">
+                            <i class="fa-solid fa-file-arrow-down"></i> DOWNLOAD FILTERED PCAP
+                        </button>
+                    </div>
+                    
+                    <div class="search-filter-container">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                        <input type="text" id="sni-search" placeholder="Filter domains/SNIs..." class="glass-input">
+                    </div>
+
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Domain / SNI</th>
+                                    <th>Classification</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="sni-table-body">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer>
+            <p>Deep Packet Analyzer &copy; 2026. Built with high-performance C++ and Node.js.</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
