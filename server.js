@@ -4,6 +4,7 @@ const cors = require('cors');
 const { execFile } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const pcapParser = require('./pcap_parser');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -16,8 +17,9 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Ensure upload and output directories exist
-const uploadDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadDir)) {
+const isVercel = process.env.VERCEL || false;
+const uploadDir = isVercel ? '/tmp' : path.join(__dirname, 'uploads');
+if (!isVercel && !fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir);
 }
 
@@ -184,17 +186,51 @@ app.post('/api/analyze', upload.single('pcap'), (req, res) => {
         }
     }
 
-    // Execute the compiled C++ DPI engine
+    // Check if we should use JavaScript fallback parser
     const binaryPath = path.join(__dirname, 'dpi_engine');
+    const useJsFallback = process.env.VERCEL || !fs.existsSync(binaryPath);
 
-    // Check if binary exists
-    if (!fs.existsSync(binaryPath)) {
-        // Try compiling it on the fly if it hasn't been compiled
-        return res.status(500).json({ 
-            error: 'DPI Engine binary not found. Run "npm run build" first.' 
-        });
+    if (useJsFallback) {
+        try {
+            const fileBuffer = fs.readFileSync(inputPath);
+            const { report, filteredPcap } = pcapParser.parsePcap(fileBuffer, rules);
+            
+            // Write filtered PCAP to output
+            fs.writeFileSync(outputPath, filteredPcap);
+            
+            // Clean up input file
+            fs.unlink(inputPath, (err) => {
+                if (err) console.error('Error deleting input file:', err);
+            });
+
+            // Generate download token
+            const fileToken = Math.random().toString(36).substring(2, 15);
+            outputFiles.set(fileToken, outputPath);
+
+            // Auto-delete output file after 10 minutes to save space
+            setTimeout(() => {
+                if (outputFiles.has(fileToken)) {
+                    fs.unlink(outputPath, (err) => {
+                        if (err && err.code !== 'ENOENT') console.error('Error auto-deleting output file:', err);
+                    });
+                    outputFiles.delete(fileToken);
+                }
+            }, 10 * 60 * 1000);
+
+            return res.json({
+                success: true,
+                report: report,
+                downloadToken: fileToken
+            });
+        } catch (err) {
+            console.error('JS Fallback parsing error:', err);
+            // Clean up input file
+            try { fs.unlinkSync(inputPath); } catch (_) {}
+            return res.status(500).json({ error: 'Failed to run packet analysis (JS fallback)', details: err.message });
+        }
     }
 
+    // Execute the compiled C++ DPI engine
     execFile(binaryPath, args, (error, stdout, stderr) => {
         // Clean up input file right away
         fs.unlink(inputPath, (err) => {
